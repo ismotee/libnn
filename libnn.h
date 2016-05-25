@@ -12,6 +12,24 @@
 #include <stdio.h>
 #include <vector>
 
+struct linkData
+{
+    int source_layer;
+    int source_id;
+    int dest_layer;
+    int dest_id;
+    
+    linkData(int s_layer, int s_id, int d_layer, int d_id):
+        source_layer(s_layer),
+        source_id(s_id),
+        dest_layer(d_layer),
+        dest_id(d_id)
+    {}
+
+};
+
+
+
 class Neuron
 {
 public:
@@ -25,11 +43,22 @@ public:
     
     float error;
     float output;
+    std::vector<float> weights;  // bias + weights
 
 protected:
-    std::vector<float> weights;  // bias + weights
     float learnRate;
 };
+
+struct NeuronData
+{
+    std::vector<float> weights;
+    float output;
+    NeuronData(Neuron original) : output(original.output)
+    {
+        weights = original.weights;
+    }
+};
+
 
 class HiddenNeuron : public Neuron
 {
@@ -70,6 +99,7 @@ public:
     void forward();
     void back();
     void clearErrors();
+    std::vector<NeuronData> getNeuronData();
 
     // for output layer;
     std::vector<float> getOutput();
@@ -80,6 +110,21 @@ public:
     
 };
 
+struct NNetData
+{
+    int inputs_n,hidden_layers_n,hidden_neurons_n, outputs_n;
+    
+    std::vector<NeuronData> nData;
+    std::vector<linkData> lData;
+    
+    NNetData();
+    NNetData(int in_n, int hl_n, int hn_n, int o_n) : inputs_n(in_n),hidden_layers_n(hl_n), hidden_neurons_n(hn_n),outputs_n(o_n)
+    {
+    }
+    
+    std::string toString();
+    
+};
 
 class NNet
 {
@@ -90,10 +135,16 @@ public:
     
     std::vector<float> forward(std::vector<float>& inputs);
     void back(std::vector<float> desired_output);
-    void linkInput(int input_id, int hidden_id);
-    void linkHidden(int source_layer, int source_id, int dest_layer, int dest_id);
+    void link(linkData);
+    void link(int source_layer, int source_id, int dest_layer, int dest_id);
+    void printSize();
+    void saveNet(std::string filename);
+    void loadNet(std::string filename);
     
 protected:
+    void linkInput(int input_id, int hidden_id);
+    void linkHidden(int source_layer, int source_id, int dest_layer, int dest_id);
+    NNetData nnData;
     NLayer inputLayer;
     std::vector<NLayer> hiddenLayers;
     NLayer outputLayer;

@@ -9,6 +9,8 @@
 #include "libnn.h"
 #include <math.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 //SIGMOID
 const float SIGMOID_RESPONSE = 0.5;
@@ -32,14 +34,14 @@ float deltaSigmoid(float sig_x)
 Neuron::Neuron () :
     error(0),
     output(0)
-{}
+{
+}
 
 
 HiddenNeuron::HiddenNeuron (float learn_rate)
 {
     learnRate = learn_rate;
     weights.push_back(1.0f);
-    
 }
 
 void HiddenNeuron::forward()
@@ -68,8 +70,6 @@ void HiddenNeuron::back()
         upper[i]->error += deltaSigmoid (output) * error;
         weights[i+1] = weights[i+1] + learnRate * upper[i]->error * upper[i]->output;
     }
-    std::cout << error;
-
     
 }
 
@@ -109,7 +109,7 @@ void InputNeuron::back()
 {
     weights[0] = weights[0] + learnRate * error * 1; // bias
     weights[1] = weights[1] + learnRate * error * input;
-    std::cout << error;
+
 }
 
 void InputNeuron::setInput(float value)
@@ -165,7 +165,7 @@ void NLayer::back()
     {
         neurons[i]->back();
     }
-    std::cout << "\n";
+
 }
 
 void NLayer::setInputs(std::vector<float> inputs)
@@ -214,12 +214,48 @@ void NLayer::clearErrors()
     }
 }
 
+std::vector<NeuronData> NLayer::getNeuronData ()
+{
+    std::vector<NeuronData> data;
+    for(int i = 0; i < neurons.size(); i++)
+        data.push_back(*neurons[i]);
+
+    return data;
+}
+
 // end of NLAYER
 
+NNetData::NNetData(){}
 
 
+std::string NNetData::toString ()
+{
+    std::stringstream ss;
 
-
+    ss << inputs_n << " " << hidden_layers_n << " " << hidden_neurons_n << " " << outputs_n << std::endl;
+    
+    for(int i = 0; i < nData.size(); i++) {
+        ss << "n" << std::endl;
+        
+        for(int j = 0; j < nData[i].weights.size(); j++) {
+            ss << nData[i].weights[j];
+            ss << " ";
+        }
+        
+        ss << nData[i].output;
+        ss << std::endl;
+        
+    }
+    
+    for(int i = 0; i < lData.size();i++)
+    {
+        ss << "l" << std::endl;
+        ss << lData[i].source_layer << " " << lData[i].source_id << " " << lData[i].dest_layer << " " << lData[i].dest_id << std::endl;
+    }
+    
+    return ss.str();
+    
+}
 
 
 
@@ -248,6 +284,9 @@ void NNet::init(int inputs_n, int hidden_layers_n, int hidden_neurons_n, int out
             outputLayer.neurons[i]->addLink(hiddenLayers.back().neurons[i]);
         }
     }
+    
+    nnData = NNetData(inputs_n, hidden_layers_n, hidden_neurons_n, outputs_n);
+    
 }
 
 
@@ -308,4 +347,54 @@ void NNet::linkHidden(int source_layer, int source_id, int dest_layer, int dest_
     {
         std::cerr << "bad link indexes!!!\n";
     }
+}
+
+void NNet::link(linkData data)
+{
+    if(data.source_layer == 0)
+        linkInput(data.source_id, data.dest_id);
+    else
+        linkHidden(data.source_layer, data.source_id, data.dest_layer, data.dest_id);
+    
+    nnData.lData.push_back(data);
+    
+}
+
+void NNet::link(int source_layer, int source_id, int dest_layer, int dest_id)
+{
+    linkData data(source_layer,source_id,dest_layer,dest_id);
+    link(data);
+}
+
+void NNet::saveNet(std::string filename)
+{
+    
+    std::ofstream os(filename);
+    
+    if(os.is_open()) {
+        std::vector<NeuronData> nData = inputLayer.getNeuronData();
+    
+        nnData.nData.insert(nnData.nData.end(), nData.begin(), nData.end());
+    
+        for(int i = 0; i < hiddenLayers.size(); i++) {
+            nData = hiddenLayers[i].getNeuronData();
+            nnData.nData.insert(nnData.nData.end(), nData.begin(), nData.end());
+        }
+    
+        nData = outputLayer.getNeuronData();
+        nnData.nData.insert(nnData.nData.end(), nData.begin(),nData.end());
+
+        os << nnData.toString();
+        os.close();
+
+    } else
+        std::cout << "no save file open";
+    
+}
+
+void NNet::printSize()
+{
+    std::cout << "input Layer: " << inputLayer.neurons.size() <<
+    " hidden layer: " << hiddenLayers.size() << " output layer:" << outputLayer.neurons.size() << "\n";
+
 }
